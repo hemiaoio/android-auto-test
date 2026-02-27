@@ -25,6 +25,7 @@ android {
 
 dependencies {
     api(project(":agent-protocol"))
+    api(project(":agent-transport"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:${property("COROUTINES_VERSION")}")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:${property("COROUTINES_VERSION")}")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:${property("SERIALIZATION_VERSION")}")

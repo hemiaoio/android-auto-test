@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import asyncio
+import os
 import shutil
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 
 
 @dataclass
@@ -19,7 +22,34 @@ class AdbClient:
     """Async wrapper around the ADB command-line tool."""
 
     def __init__(self, adb_path: str | None = None):
-        self.adb_path = adb_path or shutil.which("adb") or "adb"
+        self.adb_path = adb_path or shutil.which("adb") or self._find_adb() or "adb"
+
+    @staticmethod
+    def _find_adb() -> str | None:
+        """Auto-detect adb from ANDROID_HOME or common SDK locations."""
+        exe = "adb.exe" if sys.platform == "win32" else "adb"
+        # Check ANDROID_HOME / ANDROID_SDK_ROOT
+        for env in ("ANDROID_HOME", "ANDROID_SDK_ROOT"):
+            sdk = os.environ.get(env)
+            if sdk:
+                p = Path(sdk) / "platform-tools" / exe
+                if p.is_file():
+                    return str(p)
+        # Check common default locations
+        if sys.platform == "win32":
+            local_app = os.environ.get("LOCALAPPDATA", "")
+            if local_app:
+                p = Path(local_app) / "Android" / "Sdk" / "platform-tools" / exe
+                if p.is_file():
+                    return str(p)
+        else:
+            p = Path.home() / "Android" / "Sdk" / "platform-tools" / exe
+            if p.is_file():
+                return str(p)
+            p = Path.home() / "Library" / "Android" / "sdk" / "platform-tools" / exe
+            if p.is_file():
+                return str(p)
+        return None
 
     async def _run(self, *args: str, serial: str | None = None) -> tuple[int, str, str]:
         cmd = [self.adb_path]

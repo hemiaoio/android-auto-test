@@ -21,11 +21,14 @@ local.properties
 # Skills（由 skills-lock.json 声明，运行时自动安装）
 .agents/skills/
 
-# IDE
+# IDE / AI 工具
 .idea/
 *.iml
 .vscode/
 *.swp
+.claude/
+.junie/
+.trae/
 
 # 测试报告和数据
 reports/

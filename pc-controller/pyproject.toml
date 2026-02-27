@@ -6,7 +6,6 @@ build-backend = "hatchling.build"
 name = "autotest"
 version = "1.0.0"
 description = "Industrial-grade Android App automation platform - PC controller"
-readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
 
