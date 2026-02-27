@@ -35,6 +35,12 @@
 |------|------|
 | [CI/CD 集成](./ci-cd-integration.md) | GitHub Actions、Jenkins、GitLab CI 集成模板 |
 
+### 项目管理
+
+| 文档 | 说明 |
+|------|------|
+| [待办事项](./TODO.md) | Agent 命令处理器实现进度、优先级、详细设计 |
+
 ---
 
 ## 项目结构
