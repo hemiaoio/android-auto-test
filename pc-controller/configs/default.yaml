@@ -1,0 +1,38 @@
+device:
+  control_port: 18900
+  binary_port: 18901
+  event_port: 18902
+  connect_timeout: 10.0
+  command_timeout: 30.0
+  heartbeat_interval: 5.0
+
+runner:
+  parallel: false
+  max_workers: 4
+  retry_count: 0
+  retry_delay: 1.0
+  screenshot_on_failure: true
+  default_timeout: 30.0
+
+reporter:
+  output_dir: ./reports
+  formats:
+    - html
+    - json
+  include_screenshots: true
+  include_logs: true
+
+ocr:
+  backend: auto  # auto / online / paddleocr / tesseract
+  online:
+    api_base: "https://api.deepseek.com/v1"   # OpenAI 兼容 API 地址（支持 Deepseek/豆包/通义千问等）
+    api_key: "${AUTOTEST_OCR_API_KEY}"         # API Key，支持环境变量引用
+    model: "deepseek-chat"                     # 模型名称
+    timeout: 60.0
+  paddleocr_lang: ch         # PaddleOCR 语言（ch=中英文）
+  paddleocr_use_gpu: false
+  tesseract_lang: chi_sim+eng  # Tesseract 语言包
+
+log_level: INFO
+
+plugins: []

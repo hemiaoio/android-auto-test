@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AutoTest Agent</string>
+    <string name="accessibility_service_description">AutoTest Agent needs accessibility access to automate UI operations such as tapping, typing, and reading screen content.</string>
+    <string name="notification_channel_name">Agent Service</string>
+    <string name="notification_channel_description">Keeps AutoTest Agent running in the background</string>
+    <string name="status_idle">Idle</string>
+    <string name="status_running">Running</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_disconnected">Disconnected</string>
+    <string name="btn_start">Start Agent</string>
+    <string name="btn_stop">Stop Agent</string>
+    <string name="label_port">Control Port</string>
+    <string name="label_root_status">Root Status</string>
+    <string name="label_accessibility_status">Accessibility Status</string>
+    <string name="label_connection_status">Connection Status</string>
+</resources>
