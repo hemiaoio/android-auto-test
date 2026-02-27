@@ -18,6 +18,9 @@ venv/
 **/build/
 local.properties
 
+# Skills（由 skills-lock.json 声明，运行时自动安装）
+.agents/skills/
+
 # IDE
 .idea/
 *.iml
