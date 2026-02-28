@@ -7,10 +7,13 @@ import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import com.auto.agent.accessibility.AgentAccessibilityService
 import com.auto.agent.core.AgentEngine
 import com.auto.agent.core.CapabilityResolver
 import com.auto.agent.core.CommandRouter
+import com.auto.agent.core.handlers.ToastProvider
 import com.auto.agent.core.plugin.PluginManager
+import com.auto.agent.root.RootShellExecutor
 import com.auto.agent.transport.TransportConfig
 import com.auto.agent.transport.WebSocketTransportServer
 import kotlinx.coroutines.*
@@ -56,6 +59,17 @@ class AgentForegroundService : Service() {
                     api = android.os.Build.VERSION.SDK_INT
                 )
 
+                // Create shell executor (root-capable if rooted)
+                val shellExecutor = if (isRooted) RootShellExecutor() else null
+
+                // Toast provider bridges AccessibilityService → core (avoids circular dep)
+                val toastProvider = object : ToastProvider {
+                    override val lastToastText: String?
+                        get() = AgentAccessibilityService.lastToastText
+                    override val lastToastTimestamp: Long
+                        get() = AgentAccessibilityService.lastToastTimestamp
+                }
+
                 val pluginContext = AgentPluginContext(this@AgentForegroundService, capabilityResolver)
                 val pluginManager = PluginManager(this@AgentForegroundService, commandRouter, pluginContext)
 
@@ -64,7 +78,9 @@ class AgentForegroundService : Service() {
                     transport = transport,
                     commandRouter = commandRouter,
                     capabilityResolver = capabilityResolver,
-                    pluginManager = pluginManager
+                    pluginManager = pluginManager,
+                    shellExecutor = shellExecutor,
+                    toastProvider = toastProvider
                 )
 
                 val config = TransportConfig()

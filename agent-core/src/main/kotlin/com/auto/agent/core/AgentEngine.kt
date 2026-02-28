@@ -1,6 +1,7 @@
 package com.auto.agent.core
 
 import android.content.Context
+import com.auto.agent.core.handlers.*
 import com.auto.agent.core.plugin.PluginManager
 import com.auto.agent.protocol.Message
 import com.auto.agent.protocol.Methods
@@ -19,7 +20,9 @@ class AgentEngine(
     private val transport: TransportServer,
     private val commandRouter: CommandRouter,
     private val capabilityResolver: CapabilityResolver,
-    private val pluginManager: PluginManager
+    private val pluginManager: PluginManager,
+    private val shellExecutor: ShellExecutor? = null,
+    private val toastProvider: ToastProvider? = null
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private var isStarted = false
@@ -29,6 +32,7 @@ class AgentEngine(
 
         // Register built-in handlers
         registerSystemHandlers()
+        registerCoreHandlers()
 
         // Load plugins
         pluginManager.loadPlugins()
@@ -57,6 +61,47 @@ class AgentEngine(
         transport.sendEvent(event)
     }
 
+    /**
+     * Register all core command handlers (App, Device, UI).
+     */
+    private fun registerCoreHandlers() {
+        val shell = shellExecutor ?: DefaultShellExecutor()
+
+        // App handlers
+        commandRouter.register(AppLaunchHandler(context, shell))
+        commandRouter.register(AppStopHandler(shell))
+        commandRouter.register(AppClearHandler(shell))
+        commandRouter.register(AppInstallHandler(shell))
+        commandRouter.register(AppUninstallHandler(shell))
+        commandRouter.register(AppListHandler(shell))
+        commandRouter.register(AppInfoHandler(context, shell))
+        commandRouter.register(AppPermissionsHandler(shell))
+
+        // Device handlers
+        commandRouter.register(DeviceInfoHandler(context, capabilityResolver))
+        commandRouter.register(ScreenshotHandler(capabilityResolver, shell))
+        commandRouter.register(ShellHandler(shell))
+        commandRouter.register(InputKeyHandler(capabilityResolver, shell))
+        commandRouter.register(WakeHandler(context, shell))
+        commandRouter.register(RebootHandler(shell))
+        commandRouter.register(RotationHandler(shell))
+        commandRouter.register(ClipboardHandler(context))
+
+        // UI handlers
+        commandRouter.register(UiClickHandler(capabilityResolver, shell))
+        commandRouter.register(UiLongClickHandler(capabilityResolver, shell))
+        commandRouter.register(UiDoubleClickHandler(capabilityResolver, shell))
+        commandRouter.register(UiTypeHandler(capabilityResolver, shell))
+        commandRouter.register(UiSwipeHandler(capabilityResolver, shell))
+        commandRouter.register(UiScrollHandler(capabilityResolver, shell))
+        commandRouter.register(UiFindHandler(capabilityResolver))
+        commandRouter.register(UiDumpHandler(capabilityResolver, shell))
+        commandRouter.register(UiWaitForHandler(capabilityResolver))
+        commandRouter.register(UiToastHandler(toastProvider))
+        commandRouter.register(UiGestureHandler(capabilityResolver, shell))
+        commandRouter.register(UiPinchHandler(shell))
+    }
+
     private fun registerSystemHandlers() {
         // system.capabilities handler
         commandRouter.register(object : CommandHandler {
@@ -73,6 +118,9 @@ class AgentEngine(
                     put("inputStrategy", JsonPrimitive(caps.inputStrategy))
                     put("captureStrategy", JsonPrimitive(caps.captureStrategy))
                     put("hierarchyStrategy", JsonPrimitive(caps.hierarchyStrategy))
+                    put("registeredMethods", kotlinx.serialization.json.JsonArray(
+                        commandRouter.registeredMethods.sorted().map { JsonPrimitive(it) }
+                    ))
                 }
             }
         })
@@ -93,5 +141,38 @@ class AgentEngine(
                 }
             }
         })
+    }
+}
+
+/**
+ * Default ShellExecutor using non-root shell.
+ */
+class DefaultShellExecutor : ShellExecutor {
+    override suspend fun execute(command: String, timeoutMs: Long): com.auto.agent.core.model.ShellResult {
+        return kotlinx.coroutines.withContext(Dispatchers.IO) {
+            try {
+                val process = Runtime.getRuntime().exec(arrayOf("sh", "-c", command))
+                val stdout = process.inputStream.bufferedReader().readText()
+                val stderr = process.errorStream.bufferedReader().readText()
+                val exitCode = process.waitFor()
+                com.auto.agent.core.model.ShellResult(exitCode, stdout.trim(), stderr.trim())
+            } catch (e: Exception) {
+                com.auto.agent.core.model.ShellResult(-1, "", e.message ?: "Unknown error")
+            }
+        }
+    }
+
+    override suspend fun executeAsRoot(command: String, timeoutMs: Long): com.auto.agent.core.model.ShellResult {
+        return kotlinx.coroutines.withContext(Dispatchers.IO) {
+            try {
+                val process = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
+                val stdout = process.inputStream.bufferedReader().readText()
+                val stderr = process.errorStream.bufferedReader().readText()
+                val exitCode = process.waitFor()
+                com.auto.agent.core.model.ShellResult(exitCode, stdout.trim(), stderr.trim())
+            } catch (e: Exception) {
+                com.auto.agent.core.model.ShellResult(-1, "", e.message ?: "Unknown error")
+            }
+        }
     }
 }
