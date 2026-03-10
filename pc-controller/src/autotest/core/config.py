@@ -78,11 +78,32 @@ class OcrConfig:
 
 
 @dataclass
+class NlpConfig:
+    enabled: bool = True
+    api_base: str = ""  # 留空则复用 ocr.online 的配置
+    api_key: str = ""
+    model: str = ""
+    timeout: float = 120.0
+    max_steps: int = 10  # 单次命令最大步骤数
+
+
+@dataclass
+class ServerConfig:
+    """反向连接服务器配置 — PC 端接收设备主动连接。"""
+    host: str = "0.0.0.0"
+    port: int = 9900
+    agent_path: str = "/agent"
+    registration_timeout: float = 5.0
+
+
+@dataclass
 class AutoTestConfig:
     device: DeviceConfig = field(default_factory=DeviceConfig)
     runner: RunnerConfig = field(default_factory=RunnerConfig)
     reporter: ReporterConfig = field(default_factory=ReporterConfig)
     ocr: OcrConfig = field(default_factory=OcrConfig)
+    nlp: NlpConfig = field(default_factory=NlpConfig)
+    server: ServerConfig = field(default_factory=ServerConfig)
     log_level: str = "INFO"
     plugins: list[str] = field(default_factory=list)
 
@@ -117,6 +138,18 @@ class AutoTestConfig:
             ocr_cfg.paddleocr_use_gpu = ocr_data.get("paddleocr_use_gpu", False)
             ocr_cfg.tesseract_lang = ocr_data.get("tesseract_lang", "chi_sim+eng")
             config.ocr = ocr_cfg
+        if "nlp" in data:
+            nlp_data = data["nlp"]
+            config.nlp = NlpConfig(
+                enabled=nlp_data.get("enabled", True),
+                api_base=nlp_data.get("api_base", ""),
+                api_key=nlp_data.get("api_key", ""),
+                model=nlp_data.get("model", ""),
+                timeout=float(nlp_data.get("timeout", 120.0)),
+                max_steps=int(nlp_data.get("max_steps", 10)),
+            )
+        if "server" in data:
+            config.server = ServerConfig(**data["server"])
         config.log_level = data.get("log_level", "INFO")
         config.plugins = data.get("plugins", [])
         return config

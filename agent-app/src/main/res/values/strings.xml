@@ -14,4 +14,12 @@
     <string name="label_root_status">Root Status</string>
     <string name="label_accessibility_status">Accessibility Status</string>
     <string name="label_connection_status">Connection Status</string>
+
+    <!-- Connection Mode -->
+    <string name="label_connection_mode">Connection Mode</string>
+    <string name="mode_server">Server Mode (USB/ADB)</string>
+    <string name="mode_client">Client Mode (WiFi)</string>
+    <string name="hint_server_url">Server URL</string>
+    <string name="default_server_url">ws://192.168.1.100:9900/agent</string>
+    <string name="status_connecting">Connecting…</string>
 </resources>

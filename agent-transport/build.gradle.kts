@@ -34,4 +34,9 @@ dependencies {
     implementation("io.ktor:ktor-server-websockets:${property("KTOR_VERSION")}")
     implementation("io.ktor:ktor-server-content-negotiation:${property("KTOR_VERSION")}")
     implementation("io.ktor:ktor-serialization-kotlinx-json:${property("KTOR_VERSION")}")
+
+    // Ktor Client (reverse WebSocket — device connects to PC server)
+    implementation("io.ktor:ktor-client-core:${property("KTOR_VERSION")}")
+    implementation("io.ktor:ktor-client-okhttp:${property("KTOR_VERSION")}")
+    implementation("io.ktor:ktor-client-websockets:${property("KTOR_VERSION")}")
 }

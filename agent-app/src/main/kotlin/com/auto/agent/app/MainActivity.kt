@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import com.auto.agent.app.databinding.ActivityMainBinding
 import java.text.SimpleDateFormat
@@ -17,6 +18,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private var isAgentRunning = false
+    private var isClientMode = false
     private val logBuilder = StringBuilder()
 
     private val statusReceiver = object : BroadcastReceiver() {
@@ -56,13 +58,29 @@ class MainActivity : AppCompatActivity() {
     private fun setupUI() {
         binding.tvVersion.text = "v${BuildConfig.VERSION_NAME}"
 
+        // Connection mode toggle
+        binding.rgMode.setOnCheckedChangeListener { _, checkedId ->
+            isClientMode = checkedId == R.id.rb_client
+            binding.tilServerUrl.visibility = if (isClientMode) View.VISIBLE else View.GONE
+        }
+
         binding.btnToggle.setOnClickListener {
             if (isAgentRunning) {
                 AgentForegroundService.stop(this)
                 appendLog("Agent stopping...")
             } else {
-                AgentForegroundService.start(this)
-                appendLog("Agent starting...")
+                if (isClientMode) {
+                    val serverUrl = binding.etServerUrl.text?.toString()?.trim() ?: ""
+                    if (serverUrl.isBlank()) {
+                        appendLog("Error: Server URL is empty")
+                        return@setOnClickListener
+                    }
+                    AgentForegroundService.startReverse(this, serverUrl)
+                    appendLog("Agent starting in Client Mode → $serverUrl")
+                } else {
+                    AgentForegroundService.start(this)
+                    appendLog("Agent starting in Server Mode...")
+                }
             }
         }
 
@@ -97,8 +115,15 @@ class MainActivity : AppCompatActivity() {
             if (isAgentRunning) 0xFF4CAF50.toInt() else 0xFF757575.toInt()
         )
 
+        // Disable mode switching while running
+        binding.rgMode.isEnabled = !isAgentRunning
+        binding.rbServer.isEnabled = !isAgentRunning
+        binding.rbClient.isEnabled = !isAgentRunning
+        binding.etServerUrl.isEnabled = !isAgentRunning
+
         if (isAgentRunning) {
-            appendLog("Agent is running on port 18900")
+            val modeText = if (isClientMode) "Client Mode" else "Server Mode (port 18900)"
+            appendLog("Agent is running — $modeText")
         }
     }
 

@@ -33,6 +33,20 @@ ocr:
   paddleocr_use_gpu: false
   tesseract_lang: chi_sim+eng  # Tesseract 语言包
 
+nlp:
+  enabled: true
+  api_base: ""                           # 留空则复用 ocr.online 的 API 地址
+  api_key: ""                            # 留空则复用 ocr.online 的 API Key
+  model: ""                              # 留空则复用 ocr.online 的模型
+  timeout: 120.0                         # LLM 请求超时（秒）
+  max_steps: 10                          # 单次自然语言命令最大步骤数
+
+server:
+  host: "0.0.0.0"
+  port: 9900
+  agent_path: "/agent"
+  registration_timeout: 5.0
+
 log_level: INFO
 
 plugins: []

@@ -21,7 +21,14 @@ interface TransportServer {
     suspend fun broadcast(message: Message)
 }
 
+/** 传输模式：正向（设备当服务器）或 反向（设备连接 PC 服务器）。 */
+enum class TransportMode {
+    SERVER,
+    CLIENT
+}
+
 data class TransportConfig(
+    // 正向模式端口
     val controlPort: Int = 18900,
     val binaryPort: Int = 18901,
     val eventPort: Int = 18902,
@@ -29,7 +36,15 @@ data class TransportConfig(
     val authToken: String? = null,
     val maxConnections: Int = 5,
     val heartbeatIntervalMs: Long = 5_000,
-    val heartbeatTimeoutMs: Long = 15_000
+    val heartbeatTimeoutMs: Long = 15_000,
+    // 传输模式
+    val mode: TransportMode = TransportMode.SERVER,
+    // 反向模式配置
+    val serverUrl: String = "",
+    val deviceId: String = "",
+    val reconnectBaseDelayMs: Long = 1_000,
+    val reconnectMaxDelayMs: Long = 60_000,
+    val reconnectMaxAttempts: Int = Int.MAX_VALUE
 )
 
 data class BinaryFrame(

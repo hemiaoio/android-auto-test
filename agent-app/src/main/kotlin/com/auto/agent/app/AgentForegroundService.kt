@@ -14,7 +14,9 @@ import com.auto.agent.core.CommandRouter
 import com.auto.agent.core.handlers.ToastProvider
 import com.auto.agent.core.plugin.PluginManager
 import com.auto.agent.root.RootShellExecutor
+import com.auto.agent.transport.ReverseWebSocketTransport
 import com.auto.agent.transport.TransportConfig
+import com.auto.agent.transport.TransportMode
 import com.auto.agent.transport.WebSocketTransportServer
 import kotlinx.coroutines.*
 
@@ -33,20 +35,35 @@ class AgentForegroundService : Service() {
         startForeground(NOTIFICATION_ID, createNotification("Starting..."))
     }
 
+    private var pendingServerUrl: String? = null
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_START -> startAgent()
+            ACTION_START -> {
+                pendingServerUrl = intent.getStringExtra(EXTRA_SERVER_URL)
+                val mode = intent.getStringExtra(EXTRA_TRANSPORT_MODE)
+                startAgent(
+                    mode = if (mode == "CLIENT") TransportMode.CLIENT else TransportMode.SERVER,
+                    serverUrl = pendingServerUrl
+                )
+            }
             ACTION_STOP -> stopAgent()
         }
         return START_STICKY
     }
 
-    private fun startAgent() {
+    private fun startAgent(
+        mode: TransportMode = TransportMode.SERVER,
+        serverUrl: String? = null
+    ) {
         if (engine != null) return
 
         scope.launch {
             try {
-                val transport = WebSocketTransportServer()
+                val transport = when (mode) {
+                    TransportMode.SERVER -> WebSocketTransportServer()
+                    TransportMode.CLIENT -> ReverseWebSocketTransport()
+                }
                 val commandRouter = CommandRouter()
                 val capabilityResolver = CapabilityResolver()
 
@@ -83,10 +100,23 @@ class AgentForegroundService : Service() {
                     toastProvider = toastProvider
                 )
 
-                val config = TransportConfig()
+                val deviceId = android.provider.Settings.Secure.getString(
+                    contentResolver,
+                    android.provider.Settings.Secure.ANDROID_ID
+                ) ?: "unknown"
+
+                val config = TransportConfig(
+                    mode = mode,
+                    serverUrl = serverUrl ?: "",
+                    deviceId = deviceId
+                )
                 engine?.start(config)
 
-                updateNotification("Running on port ${config.controlPort}")
+                val statusText = when (mode) {
+                    TransportMode.SERVER -> "Running on port ${config.controlPort}"
+                    TransportMode.CLIENT -> "Connected to ${serverUrl}"
+                }
+                updateNotification(statusText)
                 broadcastStatus(true)
             } catch (e: Exception) {
                 updateNotification("Error: ${e.message}")
@@ -163,11 +193,23 @@ class AgentForegroundService : Service() {
         const val ACTION_STOP = "com.auto.agent.STOP"
         const val ACTION_STATUS_CHANGED = "com.auto.agent.STATUS_CHANGED"
         const val EXTRA_IS_RUNNING = "is_running"
+        const val EXTRA_TRANSPORT_MODE = "transport_mode"
+        const val EXTRA_SERVER_URL = "server_url"
         private const val NOTIFICATION_ID = 1001
 
         fun start(context: Context) {
             val intent = Intent(context, AgentForegroundService::class.java).apply {
                 action = ACTION_START
+                putExtra(EXTRA_TRANSPORT_MODE, "SERVER")
+            }
+            context.startForegroundService(intent)
+        }
+
+        fun startReverse(context: Context, serverUrl: String) {
+            val intent = Intent(context, AgentForegroundService::class.java).apply {
+                action = ACTION_START
+                putExtra(EXTRA_TRANSPORT_MODE, "CLIENT")
+                putExtra(EXTRA_SERVER_URL, serverUrl)
             }
             context.startForegroundService(intent)
         }

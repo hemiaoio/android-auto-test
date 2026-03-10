@@ -201,11 +201,69 @@ def dashboard(
     host: str = typer.Option("0.0.0.0", "--host", "-h", help="Dashboard host"),
     port: int = typer.Option(8080, "--port", "-p", help="Dashboard port"),
     report_dir: str = typer.Option("./reports", "--reports", "-r", help="Reports directory"),
+    config: str = typer.Option("configs/default.yaml", "--config", "-c", help="Config file path"),
 ) -> None:
     """Start the web dashboard for real-time monitoring."""
+    from autotest.core.config import AutoTestConfig
+    cfg = AutoTestConfig.load(config)
     console.print(f"Starting dashboard at [blue]http://{host}:{port}[/blue]")
     from autotest.web.app import run_dashboard
-    run_dashboard(host=host, port=port, report_dir=report_dir)
+    run_dashboard(host=host, port=port, report_dir=report_dir, config=cfg)
+
+
+@app.command()
+def nl(
+    text: str = typer.Argument(..., help="Natural language command text"),
+    device: str = typer.Option(..., "--device", "-d", help="Target device serial"),
+    config: str = typer.Option("configs/default.yaml", "--config", "-c", help="Config file path"),
+    screenshot: bool = typer.Option(False, "--screenshot", "-s", help="Attach screenshot for context"),
+) -> None:
+    """Execute a natural language command on a device."""
+
+    async def _nl() -> None:
+        from autotest.core.config import AutoTestConfig
+        from autotest.device.manager import DeviceManager
+        from autotest.nlp.engine import NLCommandEngine
+
+        cfg = AutoTestConfig.load(config)
+        engine = NLCommandEngine(cfg)
+
+        if not engine.is_available:
+            console.print("[red]NLP 引擎不可用，请检查 API Key 配置[/red]")
+            return
+
+        console.print(f"[dim]命令:[/dim] {text}")
+        console.print(f"[dim]设备:[/dim] {device}")
+
+        async with DeviceManager(config=cfg.device) as manager:
+            client = await manager.connect(device)
+            console.print("[dim]正在翻译并执行...[/dim]")
+
+            result = await engine.execute(text, client, with_screenshot=screenshot)
+
+            if not result.steps:
+                console.print("[yellow]未生成任何操作步骤[/yellow]")
+                return
+
+            table = Table(title="执行结果")
+            table.add_column("#", style="dim", width=3)
+            table.add_column("描述", style="cyan")
+            table.add_column("方法", style="dim")
+            table.add_column("状态")
+
+            for i, (step, exec_result) in enumerate(
+                zip(result.steps, result.executed), 1
+            ):
+                ok = exec_result.get("success", False)
+                status = "[green]成功[/green]" if ok else f"[red]失败: {exec_result.get('error', '')}[/red]"
+                table.add_row(str(i), step.description, step.method, status)
+
+            console.print(table)
+
+            ok_count = sum(1 for e in result.executed if e.get("success"))
+            console.print(f"\n[bold]{ok_count}/{len(result.executed)} 步成功[/bold]")
+
+    asyncio.run(_nl())
 
 
 def main() -> None:

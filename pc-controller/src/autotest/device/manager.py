@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import AsyncIterator
+from typing import TYPE_CHECKING, AsyncIterator
 
 from autotest.core.config import DeviceConfig
 from autotest.core.exceptions import DeviceOfflineError
 from autotest.device.adb import AdbClient, AdbDevice
 from autotest.device.client import DeviceClient
+
+if TYPE_CHECKING:
+    from autotest.device.remote_client import RemoteDeviceClient
 
 logger = logging.getLogger(__name__)
 
@@ -20,9 +23,10 @@ class DeviceManager:
     def __init__(self, config: DeviceConfig | None = None, adb: AdbClient | None = None):
         self.config = config or DeviceConfig()
         self.adb = adb or AdbClient()
-        self._clients: dict[str, DeviceClient] = {}
+        self._clients: dict[str, DeviceClient | RemoteDeviceClient] = {}
         self._port_map: dict[str, int] = {}
         self._next_local_port = 28900  # Local ports start from here
+        self._remote_serials: set[str] = set()
 
     async def discover(self) -> list[AdbDevice]:
         """Discover all connected ADB devices."""
@@ -93,14 +97,32 @@ class DeviceManager:
         for serial in list(self._clients.keys()):
             await self.disconnect(serial)
 
-    def get_client(self, serial: str) -> DeviceClient | None:
-        """Get an existing client by serial."""
+    def get_client(self, serial: str) -> DeviceClient | RemoteDeviceClient | None:
+        """Get an existing client by serial (ADB or remote)."""
         return self._clients.get(serial)
 
     @property
     def connected_devices(self) -> list[str]:
-        """List of connected device serials."""
+        """List of connected device serials (ADB + remote)."""
         return [s for s, c in self._clients.items() if c.is_connected]
+
+    # ---- 反向连接设备管理 ----
+
+    def register_remote(self, serial: str, client: RemoteDeviceClient) -> None:
+        """注册一台通过反向 WebSocket 连接的远程设备。"""
+        self._clients[serial] = client
+        self._remote_serials.add(serial)
+        logger.info("Remote device registered: %s", serial)
+
+    def unregister_remote(self, serial: str) -> None:
+        """注销一台远程设备。"""
+        self._clients.pop(serial, None)
+        self._remote_serials.discard(serial)
+        logger.info("Remote device unregistered: %s", serial)
+
+    def is_remote(self, serial: str) -> bool:
+        """判断设备是否为反向连接模式。"""
+        return serial in self._remote_serials
 
     async def __aenter__(self) -> DeviceManager:
         return self
